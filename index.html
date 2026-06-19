@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>롤 스킬 피하기 - 증강 상점판</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+
+    body {
+      margin: 0;
+      background: #020617;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #gameWrap { text-align: center; }
+
+    canvas {
+      background: radial-gradient(circle at center, #1f2937 0%, #020617 100%);
+      border: 3px solid #38bdf8;
+      border-radius: 14px;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #67e8f9;
+    }
+
+    .info {
+      margin-top: 10px;
+      font-size: 15px;
+      color: #d1d5db;
+      line-height: 1.6;
+    }
+
+    .btn {
+      margin-top: 12px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <div class="title">롤 스킬 피하기 - 증강 상점판</div>
+    <canvas id="game" width="980" height="600"></canvas>
+    <div class="info">
+      이동: 방향키 / WASD　|　스페이스: 기본 대시<br>
+      Q: 모래시계　|　E: 벨트　|　F: 유체화　|　상점: 3000점마다 랜덤 3개　|　ESC: 일시정지
+    </div>
+    <button class="btn" onclick="togglePause()">일시정지 / 계속하기</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const keys = {};
+
+    let player, skills, warnings, particles, drops, floatingTexts;
+    let score, hp, maxHp, money, gameOver, frame, difficulty;
+    let dashCooldown, dashTime, invincible;
+    let shopOpen, nextShopScore, shopOptions;
+    let paused, pauseButtons;
+    let hasHourglass, hasBelt, hasGhost;
+    let hourglassCooldown, hourglassActive;
+    let beltCooldown, beltActive;
+    let ghostCooldown, ghostActive;
+    let speedBuffTimer;
+    let message, messageTimer;
+
+    // 성장 스탯
+    let bonusSpeed;
+    let dashCooldownReduce;
+    let dashPowerBonus;
+    let dashInvincibleBonus;
+    let moneyBonus;
+    let moneyMultiplier;
+    let scoreMultiplier;
+    let healDropBonus;
+    let coinDropBonus;
+    let itemMagnet;
+    let damageGuardChance;
+    let skillSlowBonus;
+    let shopDiscount;
+    let regenTimerMax;
+    let regenTimer;
+    let startInvincibleBonus;
+    let tinyBodyBonus;
+    let beltPowerBonus;
+    let hourglassTimeBonus;
+    let ghostTimeBonus;
+    let ghostSpeedBonus;
+    let maxHpCap;
+
+    function init() {
+      player = {
+        x: canvas.width / 2,
+        y: canvas.height - 80,
+        r: 15,
+        baseSpeed: 4.2,
+        lastDx: 0,
+        lastDy: -1,
+        color: "#22c55e"
+      };
+
+      skills = [];
+      warnings = [];
+      particles = [];
+      drops = [];
+      floatingTexts = [];
+
+      score = 0;
+      hp = 3;
+      maxHp = 3;
+      maxHpCap = 12;
+      money = 0;
+      gameOver = false;
+      frame = 0;
+      difficulty = 1;
+
+      dashCooldown = 0;
+      dashTime = 0;
+      invincible = 0;
+
+      shopOpen = false;
+      nextShopScore = 3000;
+      shopOptions = [];
+      paused = false;
+      pauseButtons = [];
+
+      hasHourglass = false;
+      hasBelt = false;
+      hasGhost = false;
+
+      hourglassCooldown = 0;
+      hourglassActive = 0;
+      beltCooldown = 0;
+      beltActive = 0;
+      ghostCooldown = 0;
+      ghostActive = 0;
+
+      speedBuffTimer = 0;
+      message = "";
+      messageTimer = 0;
+
+      bonusSpeed = 0;
+      dashCooldownReduce = 0;
+      dashPowerBonus = 0;
+      dashInvincibleBonus = 0;
+      moneyBonus = 0;
+      moneyMultiplier = 1;
+      scoreMultiplier = 1;
+      healDropBonus = 0;
+      coinDropBonus = 0;
+      itemMagnet = 0;
+      damageGuardChance = 0;
+      skillSlowBonus = 0;
+      shopDiscount = 0;
+      regenTimerMax = 0;
+      regenTimer = 0;
+      startInvincibleBonus = 0;
+      tinyBodyBonus = 0;
+      beltPowerBonus = 0;
+      hourglassTimeBonus = 0;
+      ghostTimeBonus = 0;
+      ghostSpeedBonus = 0;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      keys[e.key.toLowerCase()] = true;
+
+      if (e.key.toLowerCase() === "escape") {
+        if (!gameOver && !shopOpen) togglePause();
+        return;
+      }
+
+      if (paused) {
+        if (e.key === "1" || e.key === "enter") resumeGame();
+        if (e.key === "2") restartGame();
+        return;
+      }
+
+      if (e.key === " " && dashCooldown <= 0 && !gameOver && !shopOpen && hourglassActive <= 0) {
+        dashTime = 8 + Math.floor(dashPowerBonus * 4);
+        dashCooldown = Math.max(32, 75 - dashCooldownReduce);
+        invincible = 13 + dashInvincibleBonus;
+      }
+
+      if (e.key.toLowerCase() === "q" && !gameOver && !shopOpen) useHourglass();
+      if (e.key.toLowerCase() === "e" && !gameOver && !shopOpen) useBelt();
+      if (e.key.toLowerCase() === "f" && !gameOver && !shopOpen) useGhost();
+
+      if (shopOpen) {
+        if (e.key === "1") buyShopOption(0);
+        if (e.key === "2") buyShopOption(1);
+        if (e.key === "3") buyShopOption(2);
+        if (e.key === "enter" || e.key === "4") closeShop();
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      for (const btn of pauseButtons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          if (btn.action === "resume") resumeGame();
+          if (btn.action === "restart") restartGame();
+          return;
+        }
+      }
+    });
+
+    function restartGame() {
+      init();
+    }
+
+    function togglePause() {
+      if (gameOver || shopOpen) return;
+      paused = !paused;
+    }
+
+    function resumeGame() {
+      paused = false;
+    }
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function randInt(min, max) {
+      return Math.floor(rand(min, max + 1));
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function showMessage(text) {
+      message = text;
+      messageTimer = 130;
+    }
+
+    function addFloatingText(text, x, y, color = "#ffffff") {
+      floatingTexts.push({ text, x, y, vy: -0.85, life: 62, color });
+    }
+
+    function openShop() {
+      shopOpen = true;
+      shopOptions = makeShopOptions();
+      showMessage("상점 오픈! 랜덤 3개 중 선택");
+    }
+
+    function closeShop() {
+      shopOpen = false;
+      nextShopScore += 3000;
+      showMessage("상점 종료!");
+    }
+
+    function getDiscountedPrice(price) {
+      return Math.max(1, Math.floor(price * (1 - shopDiscount)));
+    }
+
+    function makeShopOptions() {
+      const pool = [];
+
+      if (!hasBelt) {
+        pool.push({
+          kind: "active",
+          name: "마법공학 벨트",
+          desc: "E키 사용: 바라보는 방향으로 빠르게 돌진",
+          price: 100,
+          color: "#38bdf8",
+          apply: () => { hasBelt = true; showMessage("벨트 구매 완료! E키로 사용"); }
+        });
+      }
+
+      if (!hasHourglass) {
+        pool.push({
+          kind: "active",
+          name: "존야의 모래시계",
+          desc: "Q키 사용: 잠시 무적, 대신 이동 불가",
+          price: 200,
+          color: "#facc15",
+          apply: () => { hasHourglass = true; showMessage("모래시계 구매 완료! Q키로 사용"); }
+        });
+      }
+
+      if (!hasGhost) {
+        pool.push({
+          kind: "active",
+          name: "유체화",
+          desc: "F키 사용: 일정 시간 이동속도 크게 증가",
+          price: 400,
+          color: "#a7f3d0",
+          apply: () => { hasGhost = true; showMessage("유체화 구매 완료! F키로 사용"); }
+        });
+      }
+
+      // 증강은 매 상점마다 수치가 조금씩 다르게 나옴
+      const augments = [
+        makeAugmentMaxHp(),
+        makeAugmentHealNow(),
+        makeAugmentSpeed(),
+        makeAugmentBigSpeed(),
+        makeAugmentCoinGain(),
+        makeAugmentCoinMultiplier(),
+        makeAugmentScore(),
+        makeAugmentDashCooldown(),
+        makeAugmentDashPower(),
+        makeAugmentDashInvincible(),
+        makeAugmentHealDrop(),
+        makeAugmentCoinDrop(),
+        makeAugmentMagnet(),
+        makeAugmentGuard(),
+        makeAugmentSkillSlow(),
+        makeAugmentDiscount(),
+        makeAugmentRegen(),
+        makeAugmentSmallBody(),
+        makeAugmentStartInvincible(),
+        makeAugmentBeltPower(),
+        makeAugmentHourglassTime(),
+        makeAugmentGhostPower(),
+        makeAugmentMaxHpAndHeal(),
+        makeAugmentRiskReward()
+      ];
+
+      pool.push(...augments);
+
+      // 랜덤 3개만 표시
+      const result = [];
+      const used = new Set();
+
+      while (result.length < 3 && used.size < pool.length) {
+        const index = Math.floor(Math.random() * pool.length);
+        if (!used.has(index)) {
+          used.add(index);
+          result.push(pool[index]);
+        }
+      }
+
+      return result;
+    }
+
+    function makeAugmentMaxHp() {
+      return {
+        kind: "augment",
+        name: "거인의 체력",
+        desc: "최대 체력 +1",
+        price: randInt(70, 120),
+        color: "#22c55e",
+        apply: () => {
+          if (maxHp < maxHpCap) {
+            maxHp += 1;
+            hp = Math.min(maxHp, hp + 1);
+            showMessage("최대 체력 +1");
+          } else showMessage("최대 체력이 이미 충분히 높습니다.");
+        }
+      };
+    }
+
+    function makeAugmentHealNow() {
+      return {
+        kind: "augment",
+        name: "회복 구슬",
+        desc: "즉시 체력 +1 회복",
+        price: randInt(45, 85),
+        color: "#4ade80",
+        apply: () => {
+          hp = Math.min(maxHp, hp + 1);
+          showMessage("체력 +1 회복");
+        }
+      };
+    }
+
+    function makeAugmentSpeed() {
+      const value = Number(rand(0.1, 0.5).toFixed(1));
+      return {
+        kind: "augment",
+        name: "가벼운 발걸음",
+        desc: `기본 이동속도 +${value}`,
+        price: randInt(80, 150),
+        color: "#67e8f9",
+        apply: () => {
+          bonusSpeed += value;
+          showMessage(`이동속도 +${value}`);
+        }
+      };
+    }
+
+    function makeAugmentBigSpeed() {
+      const value = Number(rand(0.2, 0.6).toFixed(1));
+      return {
+        kind: "augment",
+        name: "민첩한 회피",
+        desc: `기본 이동속도 +${value}, 체력 1 회복`,
+        price: randInt(130, 220),
+        color: "#22d3ee",
+        apply: () => {
+          bonusSpeed += value;
+          hp = Math.min(maxHp, hp + 1);
+          showMessage(`이동속도 +${value}, 체력 회복`);
+        }
+      };
+    }
+
+    function makeAugmentCoinGain() {
+      const value = randInt(1, 3);
+      return {
+        kind: "augment",
+        name: "돈 냄새",
+        desc: `코인 획득량 +${value}`,
+        price: randInt(90, 170),
+        color: "#facc15",
+        apply: () => {
+          moneyBonus += value;
+          showMessage(`코인 획득량 +${value}`);
+        }
+      };
+    }
+
+    function makeAugmentCoinMultiplier() {
+      const value = Number(rand(0.05, 0.15).toFixed(2));
+      return {
+        kind: "augment",
+        name: "황금 감각",
+        desc: `코인 획득량 +${Math.round(value * 100)}%`,
+        price: randInt(120, 230),
+        color: "#fde047",
+        apply: () => {
+          moneyMultiplier += value;
+          showMessage(`코인 획득량 +${Math.round(value * 100)}%`);
+        }
+      };
+    }
+
+    function makeAugmentScore() {
+      const value = Number(rand(0.05, 0.12).toFixed(2));
+      return {
+        kind: "augment",
+        name: "고득점 본능",
+        desc: `점수 획득량 +${Math.round(value * 100)}%`,
+        price: randInt(95, 180),
+        color: "#c084fc",
+        apply: () => {
+          scoreMultiplier += value;
+          showMessage(`점수 획득량 +${Math.round(value * 100)}%`);
+        }
+      };
+    }
+
+    function makeAugmentDashCooldown() {
+      const value = randInt(6, 16);
+      return {
+        kind: "augment",
+        name: "대시 숙련",
+        desc: `기본 대시 쿨타임 감소`,
+        price: randInt(80, 150),
+        color: "#93c5fd",
+        apply: () => {
+          dashCooldownReduce += value;
+          showMessage("대시 쿨타임 감소");
+        }
+      };
+    }
+
+    function makeAugmentDashPower() {
+      const value = Number(rand(0.2, 0.6).toFixed(1));
+      return {
+        kind: "augment",
+        name: "긴급 탈출",
+        desc: `기본 대시 거리 +${Math.round(value * 10)}%`,
+        price: randInt(90, 170),
+        color: "#60a5fa",
+        apply: () => {
+          dashPowerBonus += value;
+          showMessage("대시 거리 증가");
+        }
+      };
+    }
+
+    function makeAugmentDashInvincible() {
+      const value = randInt(4, 10);
+      return {
+        kind: "augment",
+        name: "순간 무적",
+        desc: "대시 무적 시간 증가",
+        price: randInt(100, 190),
+        color: "#bfdbfe",
+        apply: () => {
+          dashInvincibleBonus += value;
+          showMessage("대시 무적 시간 증가");
+        }
+      };
+    }
+
+    function makeAugmentHealDrop() {
+      const value = Number(rand(0.0005, 0.0014).toFixed(4));
+      return {
+        kind: "augment",
+        name: "생명력 탐지",
+        desc: "회복 아이템 등장 확률 소폭 증가",
+        price: randInt(85, 160),
+        color: "#86efac",
+        apply: () => {
+          healDropBonus += value;
+          showMessage("회복 아이템 등장 확률 증가");
+        }
+      };
+    }
+
+    function makeAugmentCoinDrop() {
+      const value = Number(rand(0.003, 0.008).toFixed(3));
+      return {
+        kind: "augment",
+        name: "황금비",
+        desc: "코인 등장 확률 증가",
+        price: randInt(95, 180),
+        color: "#fbbf24",
+        apply: () => {
+          coinDropBonus += value;
+          showMessage("코인 등장 확률 증가");
+        }
+      };
+    }
+
+    function makeAugmentMagnet() {
+      const value = randInt(20, 45);
+      return {
+        kind: "augment",
+        name: "자석 장갑",
+        desc: `아이템 흡수 범위 +${value}`,
+        price: randInt(90, 170),
+        color: "#e879f9",
+        apply: () => {
+          itemMagnet += value;
+          showMessage("아이템 흡수 범위 증가");
+        }
+      };
+    }
+
+    function makeAugmentGuard() {
+      const value = Number(rand(0.04, 0.1).toFixed(2));
+      return {
+        kind: "augment",
+        name: "행운의 방패",
+        desc: `피격 무효 확률 +${Math.round(value * 100)}%`,
+        price: randInt(120, 230),
+        color: "#f9a8d4",
+        apply: () => {
+          damageGuardChance = Math.min(0.35, damageGuardChance + value);
+          showMessage("피격 무효 확률 증가");
+        }
+      };
+    }
+
+    function makeAugmentSkillSlow() {
+      const value = Number(rand(0.03, 0.08).toFixed(2));
+      return {
+        kind: "augment",
+        name: "느려져라",
+        desc: `적 스킬 속도 -${Math.round(value * 100)}%`,
+        price: randInt(130, 240),
+        color: "#a5b4fc",
+        apply: () => {
+          skillSlowBonus = Math.min(0.35, skillSlowBonus + value);
+          showMessage("적 스킬 속도 감소");
+        }
+      };
+    }
+
+    function makeAugmentDiscount() {
+      const value = Number(rand(0.04, 0.1).toFixed(2));
+      return {
+        kind: "augment",
+        name: "흥정의 달인",
+        desc: `상점 가격 -${Math.round(value * 100)}%`,
+        price: randInt(110, 210),
+        color: "#fef08a",
+        apply: () => {
+          shopDiscount = Math.min(0.4, shopDiscount + value);
+          showMessage("상점 할인 증가");
+        }
+      };
+    }
+
+    function makeAugmentRegen() {
+      return {
+        kind: "augment",
+        name: "재생 갑옷",
+        desc: "일정 시간마다 체력 1 회복",
+        price: randInt(170, 280),
+        color: "#bbf7d0",
+        apply: () => {
+          if (regenTimerMax === 0) regenTimerMax = 1800;
+          else regenTimerMax = Math.max(900, regenTimerMax - 180);
+          regenTimer = regenTimerMax;
+          showMessage("자동 체력 재생 획득");
+        }
+      };
+    }
+
+    function makeAugmentSmallBody() {
+      const value = Number(rand(0.5, 1.5).toFixed(1));
+      return {
+        kind: "augment",
+        name: "작아지는 몸",
+        desc: `피격 판정 크기 -${value}`,
+        price: randInt(110, 210),
+        color: "#ddd6fe",
+        apply: () => {
+          tinyBodyBonus += value;
+          player.r = Math.max(9, 15 - tinyBodyBonus);
+          showMessage("피격 판정 감소");
+        }
+      };
+    }
+
+    function makeAugmentStartInvincible() {
+      const value = randInt(30, 80);
+      return {
+        kind: "augment",
+        name: "전투 준비",
+        desc: "상점 종료 후 잠시 무적",
+        price: randInt(65, 125),
+        color: "#fecaca",
+        apply: () => {
+          startInvincibleBonus += value;
+          showMessage("상점 이후 무적 시간 증가");
+        }
+      };
+    }
+
+    function makeAugmentBeltPower() {
+      const value = Number(rand(0.2, 0.6).toFixed(1));
+      return {
+        kind: "augment",
+        name: "벨트 개조",
+        desc: `벨트 돌진 거리 +${Math.round(value * 10)}%`,
+        price: randInt(80, 160),
+        color: "#7dd3fc",
+        apply: () => {
+          beltPowerBonus += value;
+          showMessage("벨트 돌진 거리 증가");
+        }
+      };
+    }
+
+    function makeAugmentHourglassTime() {
+      const value = randInt(15, 45);
+      return {
+        kind: "augment",
+        name: "황금 시간",
+        desc: "모래시계 지속 시간 증가",
+        price: randInt(100, 190),
+        color: "#facc15",
+        apply: () => {
+          hourglassTimeBonus += value;
+          showMessage("모래시계 지속 시간 증가");
+        }
+      };
+    }
+
+    function makeAugmentGhostPower() {
+      const value = Number(rand(0.2, 0.6).toFixed(1));
+      const time = randInt(20, 50);
+      return {
+        kind: "augment",
+        name: "유체화 강화",
+        desc: `유체화 속도 +${value}, 지속시간 증가`,
+        price: randInt(120, 230),
+        color: "#a7f3d0",
+        apply: () => {
+          ghostSpeedBonus += value;
+          ghostTimeBonus += time;
+          showMessage("유체화 강화");
+        }
+      };
+    }
+
+    function makeAugmentMaxHpAndHeal() {
+      return {
+        kind: "augment",
+        name: "튼튼한 심장",
+        desc: "최대 체력 +1, 체력 +1 회복",
+        price: randInt(140, 240),
+        color: "#4ade80",
+        apply: () => {
+          if (maxHp < maxHpCap) maxHp += 1;
+          hp = Math.min(maxHp, hp + 1);
+          showMessage("최대 체력과 현재 체력 증가");
+        }
+      };
+    }
+
+    function makeAugmentRiskReward() {
+      const coinValue = randInt(2, 3);
+      return {
+        kind: "augment",
+        name: "도박꾼의 선택",
+        desc: `체력 -1, 코인 획득량 +${coinValue}`,
+        price: randInt(40, 90),
+        color: "#fb7185",
+        apply: () => {
+          if (hp > 1) hp -= 1;
+          moneyBonus += coinValue;
+          showMessage(`위험한 선택! 코인 획득량 +${coinValue}`);
+        }
+      };
+    }
+
+    function buyShopOption(index) {
+      const option = shopOptions[index];
+      if (!option) return;
+
+      const price = getDiscountedPrice(option.price);
+
+      if (money < price) {
+        showMessage(`돈 부족! 필요 금액: ${price}원`);
+        return;
+      }
+
+      money -= price;
+      option.apply();
+
+      // 구매한 자리는 SOLD 표시
+      shopOptions[index] = {
+        kind: "sold",
+        name: "구매 완료",
+        desc: "이미 구매한 칸입니다.",
+        price: 0,
+        color: "#64748b",
+        apply: () => {}
+      };
+
+      if (startInvincibleBonus > 0) {
+        invincible = Math.max(invincible, startInvincibleBonus);
+      }
+    }
+
+    function useHourglass() {
+      if (!hasHourglass) { showMessage("모래시계가 없습니다."); return; }
+      if (hourglassCooldown > 0) { showMessage("모래시계 쿨타임입니다."); return; }
+
+      hourglassActive = 150 + hourglassTimeBonus;
+      invincible = hourglassActive;
+      hourglassCooldown = 720;
+      dashTime = 0;
+      createBurst(player.x, player.y, "#facc15");
+      showMessage("존야 발동!");
+    }
+
+    function useBelt() {
+      if (!hasBelt) { showMessage("벨트가 없습니다."); return; }
+      if (beltCooldown > 0) { showMessage("벨트 쿨타임입니다."); return; }
+
+      beltActive = 12 + Math.floor(beltPowerBonus * 5);
+      beltCooldown = 360;
+      invincible = 18;
+      createBurst(player.x, player.y, "#38bdf8");
+      showMessage("벨트 돌진!");
+    }
+
+    function useGhost() {
+      if (!hasGhost) { showMessage("유체화가 없습니다."); return; }
+      if (ghostCooldown > 0) { showMessage("유체화 쿨타임입니다."); return; }
+
+      ghostActive = 300 + ghostTimeBonus;
+      ghostCooldown = 900;
+      createBurst(player.x, player.y, "#a7f3d0");
+      showMessage("유체화 발동!");
+    }
+
+    function updateDifficulty() {
+      difficulty = Math.min(6.5, 1 + score / 4200);
+    }
+
+    function movePlayer() {
+      if (hourglassActive > 0) return;
+
+      let dx = 0, dy = 0;
+      if (keys["arrowleft"] || keys["a"]) dx -= 1;
+      if (keys["arrowright"] || keys["d"]) dx += 1;
+      if (keys["arrowup"] || keys["w"]) dy -= 1;
+      if (keys["arrowdown"] || keys["s"]) dy += 1;
+
+      const len = Math.hypot(dx, dy);
+      if (len > 0) {
+        dx /= len; dy /= len;
+        player.lastDx = dx; player.lastDy = dy;
+      }
+
+      let speed = player.baseSpeed + bonusSpeed;
+      if (speedBuffTimer > 0) speed += 1.5;
+      if (ghostActive > 0) speed += 2.2 + ghostSpeedBonus;
+      if (dashTime > 0) {
+        speed = 12 + dashPowerBonus * 4;
+        dashTime--;
+      }
+      if (beltActive > 0) {
+        dx = player.lastDx;
+        dy = player.lastDy;
+        speed = 16 + beltPowerBonus * 5;
+        beltActive--;
+        spawnBeltFlame();
+      }
+
+      player.x += dx * speed;
+      player.y += dy * speed;
+      player.x = Math.max(player.r, Math.min(canvas.width - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(canvas.height - player.r, player.y));
+    }
+
+    function spawnBeltFlame() {
+      particles.push({
+        x: player.x - player.lastDx * 16,
+        y: player.y - player.lastDy * 16,
+        vx: -player.lastDx * 2 + (Math.random() - 0.5) * 2,
+        vy: -player.lastDy * 2 + (Math.random() - 0.5) * 2,
+        life: 20,
+        r: Math.random() * 5 + 2,
+        color: "#38bdf8"
+      });
+    }
+
+    function spawnWarning() {
+      const r = Math.random();
+
+      if (r < 0.30) spawnLineWarning();
+      else if (r < 0.50) spawnCircleWarning();
+      else if (r < 0.68) spawnLaserWarning();
+      else if (r < 0.84) spawnBoomerangWarning();
+      else spawnRainWarning();
+    }
+
+    function skillSpeed(value) {
+      return value * (1 - skillSlowBonus);
+    }
+
+    function spawnLineWarning() {
+      const side = Math.floor(Math.random() * 4);
+      let x, y;
+      if (side === 0) { x = Math.random() * canvas.width; y = -35; }
+      if (side === 1) { x = canvas.width + 35; y = Math.random() * canvas.height; }
+      if (side === 2) { x = Math.random() * canvas.width; y = canvas.height + 35; }
+      if (side === 3) { x = -35; y = Math.random() * canvas.height; }
+
+      warnings.push({
+        type: "line",
+        x, y,
+        targetX: player.x + rand(-130, 130),
+        targetY: player.y + rand(-90, 90),
+        timer: 42,
+        maxTimer: 42,
+        speed: skillSpeed(4.8 + difficulty * 0.95),
+        radius: 11
+      });
+    }
+
+    function spawnCircleWarning() {
+      warnings.push({
+        type: "circle",
+        x: rand(60, canvas.width - 60),
+        y: rand(60, canvas.height - 60),
+        timer: 54,
+        maxTimer: 54,
+        radius: 35 + Math.random() * 30
+      });
+    }
+
+    function spawnLaserWarning() {
+      const horizontal = Math.random() < 0.5;
+      warnings.push({
+        type: "laser",
+        horizontal,
+        pos: horizontal ? Math.random() * canvas.height : Math.random() * canvas.width,
+        timer: 58,
+        maxTimer: 58,
+        width: 22 + difficulty * 2
+      });
+    }
+
+    function spawnBoomerangWarning() {
+      const left = Math.random() < 0.5;
+      const x = left ? -35 : canvas.width + 35;
+      const y = Math.random() * canvas.height;
+
+      warnings.push({
+        type: "boomerang",
+        x, y,
+        targetX: player.x,
+        targetY: player.y,
+        timer: 48,
+        maxTimer: 48,
+        speed: skillSpeed(3.5 + difficulty * 0.75),
+        radius: 14
+      });
+    }
+
+    function spawnRainWarning() {
+      const count = 4 + Math.floor(difficulty);
+      for (let i = 0; i < count; i++) {
+        warnings.push({
+          type: "rain",
+          x: Math.random() * canvas.width,
+          y: -45 - i * 24,
+          timer: 30 + i * 6,
+          maxTimer: 30 + i * 6,
+          speed: skillSpeed(5.6 + difficulty),
+          radius: 9
+        });
+      }
+    }
+
+    function updateWarnings() {
+      for (let i = warnings.length - 1; i >= 0; i--) {
+        const w = warnings[i];
+        w.timer--;
+
+        if (w.timer <= 0) {
+          if (w.type === "line") {
+            const angle = Math.atan2(w.targetY - w.y, w.targetX - w.x);
+            skills.push({
+              type: "line",
+              x: w.x, y: w.y,
+              vx: Math.cos(angle) * w.speed,
+              vy: Math.sin(angle) * w.speed,
+              r: w.radius,
+              color: "#fb7185"
+            });
+          }
+
+          if (w.type === "circle") {
+            skills.push({
+              type: "circle",
+              x: w.x, y: w.y,
+              r: w.radius,
+              timer: 27,
+              color: "#f97316"
+            });
+          }
+
+          if (w.type === "laser") {
+            skills.push({
+              type: "laser",
+              horizontal: w.horizontal,
+              pos: w.pos,
+              width: w.width,
+              timer: 34,
+              color: "#a855f7"
+            });
+          }
+
+          if (w.type === "boomerang") {
+            const angle = Math.atan2(w.targetY - w.y, w.targetX - w.x);
+            skills.push({
+              type: "boomerang",
+              x: w.x, y: w.y,
+              vx: Math.cos(angle) * w.speed,
+              vy: Math.sin(angle) * w.speed,
+              r: w.radius,
+              life: 165,
+              turnTimer: 70,
+              color: "#eab308"
+            });
+          }
+
+          if (w.type === "rain") {
+            skills.push({
+              type: "rain",
+              x: w.x, y: w.y,
+              vx: rand(-0.7, 0.7),
+              vy: w.speed,
+              r: w.radius,
+              color: "#60a5fa"
+            });
+          }
+
+          warnings.splice(i, 1);
+        }
+      }
+    }
+
+    function updateSkills() {
+      for (let i = skills.length - 1; i >= 0; i--) {
+        const s = skills[i];
+
+        if (s.type === "line" || s.type === "rain") {
+          s.x += s.vx;
+          s.y += s.vy;
+
+          if (s.x < -90 || s.x > canvas.width + 90 || s.y < -90 || s.y > canvas.height + 90) {
+            skills.splice(i, 1);
+          }
+        }
+
+        if (s.type === "circle" || s.type === "laser") {
+          s.timer--;
+          if (s.timer <= 0) skills.splice(i, 1);
+        }
+
+        if (s.type === "boomerang") {
+          s.x += s.vx;
+          s.y += s.vy;
+          s.life--;
+          s.turnTimer--;
+
+          if (s.turnTimer === 0) {
+            const angle = Math.atan2(player.y - s.y, player.x - s.x);
+            const sp = Math.hypot(s.vx, s.vy) + 1.2;
+            s.vx = Math.cos(angle) * sp;
+            s.vy = Math.sin(angle) * sp;
+          }
+
+          if (s.life <= 0) skills.splice(i, 1);
+        }
+      }
+    }
+
+    function spawnDrops() {
+      if (Math.random() < 0.012 + coinDropBonus) {
+        drops.push({
+          type: "coin",
+          x: rand(40, canvas.width - 40),
+          y: rand(40, canvas.height - 40),
+          r: 10,
+          life: 620,
+          value: randInt(4, 8)
+        });
+      }
+
+      if (Math.random() < 0.0035) {
+        drops.push({
+          type: "speed",
+          x: rand(40, canvas.width - 40),
+          y: rand(40, canvas.height - 40),
+          r: 12,
+          life: 430
+        });
+      }
+
+      if (Math.random() < 0.0012 + healDropBonus) {
+        drops.push({
+          type: "heal",
+          x: rand(40, canvas.width - 40),
+          y: rand(40, canvas.height - 40),
+          r: 13,
+          life: 380
+        });
+      }
+    }
+
+    function updateDrops() {
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+        d.life--;
+
+        if (d.life <= 0) {
+          drops.splice(i, 1);
+          continue;
+        }
+
+        const dx = player.x - d.x;
+        const dy = player.y - d.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (itemMagnet > 0 && dist < 70 + itemMagnet && dist > 1) {
+          d.x += dx / dist * 2.4;
+          d.y += dy / dist * 2.4;
+        }
+
+        const pickupRange = player.r + d.r + itemMagnet * 0.25;
+
+        if (dist < pickupRange) {
+          if (d.type === "coin") {
+            const gain = Math.floor((d.value + moneyBonus) * moneyMultiplier);
+            money += gain;
+            addFloatingText(`+${gain}원`, d.x, d.y, "#facc15");
+          }
+
+          if (d.type === "speed") {
+            speedBuffTimer = 420;
+            addFloatingText("속도 증가!", d.x, d.y, "#38bdf8");
+          }
+
+          if (d.type === "heal") {
+            if (hp < maxHp) {
+              hp++;
+              addFloatingText("체력 회복!", d.x, d.y, "#22c55e");
+            } else {
+              const gain = Math.floor((12 + moneyBonus) * moneyMultiplier);
+              money += gain;
+              addFloatingText(`체력 MAX +${gain}원`, d.x, d.y, "#facc15");
+            }
+          }
+
+          createBurst(d.x, d.y, d.type === "coin" ? "#facc15" : d.type === "speed" ? "#38bdf8" : "#22c55e");
+          drops.splice(i, 1);
+        }
+      }
+    }
+
+    function checkCollision() {
+      if (invincible > 0) return;
+
+      for (let i = skills.length - 1; i >= 0; i--) {
+        const s = skills[i];
+        let hit = false;
+
+        if (s.type === "line" || s.type === "circle" || s.type === "boomerang" || s.type === "rain") {
+          const dist = Math.hypot(player.x - s.x, player.y - s.y);
+          hit = dist < player.r + s.r;
+        }
+
+        if (s.type === "laser") {
+          if (s.horizontal) hit = Math.abs(player.y - s.pos) < player.r + s.width / 2;
+          else hit = Math.abs(player.x - s.pos) < player.r + s.width / 2;
+        }
+
+        if (hit) {
+          if (Math.random() < damageGuardChance) {
+            invincible = 45;
+            addFloatingText("방패 발동!", player.x, player.y - 20, "#f9a8d4");
+            createBurst(player.x, player.y, "#f9a8d4");
+            if (s.type !== "laser" && s.type !== "circle") skills.splice(i, 1);
+            return;
+          }
+
+          hp--;
+          invincible = 70;
+          createHitParticles(player.x, player.y);
+
+          if (s.type !== "laser" && s.type !== "circle") skills.splice(i, 1);
+          if (hp <= 0) gameOver = true;
+          break;
+        }
+      }
+    }
+
+    function updateRegen() {
+      if (regenTimerMax <= 0) return;
+      regenTimer--;
+
+      if (regenTimer <= 0) {
+        regenTimer = regenTimerMax;
+        if (hp < maxHp) {
+          hp++;
+          addFloatingText("자동 회복 +1", player.x, player.y - 25, "#86efac");
+        }
+      }
+    }
+
+    function createHitParticles(x, y) {
+      for (let i = 0; i < 24; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = Math.random() * 4.5 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          life: 32,
+          r: Math.random() * 4 + 2,
+          color: "#fb7185"
+        });
+      }
+    }
+
+    function createBurst(x, y, color) {
+      for (let i = 0; i < 24; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = Math.random() * 3 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          life: 28,
+          r: Math.random() * 4 + 2,
+          color
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function updateFloatingTexts() {
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const t = floatingTexts[i];
+        t.y += t.vy;
+        t.life--;
+        if (t.life <= 0) floatingTexts.splice(i, 1);
+      }
+    }
+
+    function drawMap() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.14)";
+      ctx.lineWidth = 1;
+
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, 105, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawWarnings() {
+      warnings.forEach(w => {
+        const alpha = 0.22 + 0.42 * (1 - w.timer / w.maxTimer);
+
+        if (w.type === "line" || w.type === "boomerang" || w.type === "rain") {
+          ctx.strokeStyle = `rgba(248, 113, 113, ${alpha})`;
+          ctx.lineWidth = w.type === "rain" ? 12 : 22;
+          ctx.beginPath();
+          ctx.moveTo(w.x, w.y);
+          if (w.type === "rain") ctx.lineTo(w.x, canvas.height);
+          else ctx.lineTo(w.targetX, w.targetY);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        if (w.type === "circle") {
+          ctx.fillStyle = `rgba(248, 113, 113, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+
+        if (w.type === "laser") {
+          ctx.fillStyle = `rgba(168, 85, 247, ${alpha})`;
+          if (w.horizontal) ctx.fillRect(0, w.pos - w.width / 2, canvas.width, w.width);
+          else ctx.fillRect(w.pos - w.width / 2, 0, w.width, canvas.height);
+        }
+      });
+    }
+
+    function drawSkills() {
+      skills.forEach(s => {
+        if (s.type === "line" || s.type === "rain" || s.type === "boomerang") {
+          ctx.fillStyle = s.color;
+          ctx.shadowColor = s.color;
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          if (s.type === "boomerang") {
+            ctx.strokeStyle = "#fef08a";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r + 5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+
+        if (s.type === "circle") {
+          ctx.fillStyle = "rgba(249, 115, 22, 0.45)";
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "#fdba74";
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+
+        if (s.type === "laser") {
+          ctx.fillStyle = "rgba(168, 85, 247, 0.55)";
+          ctx.shadowColor = "#c084fc";
+          ctx.shadowBlur = 18;
+          if (s.horizontal) ctx.fillRect(0, s.pos - s.width / 2, canvas.width, s.width);
+          else ctx.fillRect(s.pos - s.width / 2, 0, s.width, canvas.height);
+          ctx.shadowBlur = 0;
+        }
+      });
+    }
+
+    function drawDrops() {
+      drops.forEach(d => {
+        const blink = d.life < 120 && Math.floor(frame / 8) % 2 === 0;
+        if (blink) return;
+
+        if (d.type === "coin") {
+          ctx.fillStyle = "#facc15";
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#78350f";
+          ctx.font = "bold 12px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("₩", d.x, d.y + 4);
+          ctx.textAlign = "left";
+        }
+
+        if (d.type === "speed") {
+          ctx.fillStyle = "#38bdf8";
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y - d.r);
+          ctx.lineTo(d.x + d.r, d.y);
+          ctx.lineTo(d.x, d.y + d.r);
+          ctx.lineTo(d.x - d.r, d.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        if (d.type === "heal") {
+          ctx.fillStyle = "#22c55e";
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "white";
+          ctx.fillRect(d.x - 3, d.y - 8, 6, 16);
+          ctx.fillRect(d.x - 8, d.y - 3, 16, 6);
+        }
+      });
+    }
+
+    function drawPlayer() {
+      if (invincible > 0 && hourglassActive <= 0 && Math.floor(frame / 5) % 2 === 0) return;
+
+      if (hourglassActive > 0) {
+        ctx.fillStyle = "rgba(250, 204, 21, 0.22)";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 43, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 32, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (ghostActive > 0) {
+        ctx.fillStyle = "rgba(167, 243, 208, 0.16)";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 36, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = beltActive > 0 ? "#7dd3fc" : ghostActive > 0 ? "#a7f3d0" : speedBuffTimer > 0 ? "#67e8f9" : player.color;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#dcfce7";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = "#052e16";
+      ctx.beginPath();
+      ctx.arc(player.x + player.lastDx * 6, player.y + player.lastDy * 6, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawParticles() {
+      particles.forEach(p => {
+        ctx.fillStyle = hexToRgba(p.color || "#ffffff", p.life / 32);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawFloatingTexts() {
+      floatingTexts.forEach(t => {
+        ctx.fillStyle = t.color;
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.textAlign = "left";
+      });
+    }
+
+    function hexToRgba(hex, alpha) {
+      const clean = hex.replace("#", "");
+      const r = parseInt(clean.substring(0, 2), 16);
+      const g = parseInt(clean.substring(2, 4), 16);
+      const b = parseInt(clean.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function cooldownText(value) {
+      if (value <= 0) return "가능";
+      return (value / 60).toFixed(1) + "초";
+    }
+
+    function drawUI() {
+      if (!paused && !gameOver) pauseButtons = [];
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText("점수: " + Math.floor(score), 20, 32);
+      ctx.fillText("체력: " + "❤".repeat(hp) + ` (${hp}/${maxHp})`, 20, 62);
+      ctx.fillText("돈: " + money + "원", 20, 92);
+
+      ctx.font = "15px Arial";
+      ctx.fillStyle = "#d1d5db";
+      ctx.fillText("난이도: " + difficulty.toFixed(1), 20, 120);
+      ctx.fillText("이동속도: " + (player.baseSpeed + bonusSpeed).toFixed(1), 20, 143);
+      ctx.fillText("코인 추가: +" + moneyBonus + " / 배율 " + moneyMultiplier.toFixed(2), 20, 166);
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.fillText("스페이스 대시: " + cooldownText(dashCooldown), 20, 190);
+
+      ctx.fillStyle = hasHourglass ? "#facc15" : "#64748b";
+      ctx.fillText("Q 모래시계: " + (hasHourglass ? cooldownText(hourglassCooldown) : "미구매"), 20, 213);
+
+      ctx.fillStyle = hasBelt ? "#38bdf8" : "#64748b";
+      ctx.fillText("E 벨트: " + (hasBelt ? cooldownText(beltCooldown) : "미구매"), 20, 236);
+
+      ctx.fillStyle = hasGhost ? "#a7f3d0" : "#64748b";
+      ctx.fillText("F 유체화: " + (hasGhost ? cooldownText(ghostCooldown) : "미구매"), 20, 259);
+
+      if (speedBuffTimer > 0) {
+        ctx.fillStyle = "#67e8f9";
+        ctx.fillText("속도 버프: " + (speedBuffTimer / 60).toFixed(1) + "초", 20, 282);
+      }
+
+      if (ghostActive > 0) {
+        ctx.fillStyle = "#a7f3d0";
+        ctx.fillText("유체화 중: " + (ghostActive / 60).toFixed(1) + "초", 20, 305);
+      }
+
+      if (regenTimerMax > 0) {
+        ctx.fillStyle = "#86efac";
+        ctx.fillText("자동 회복: " + (regenTimer / 60).toFixed(0) + "초", 20, 328);
+      }
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.fillText("다음 상점: " + nextShopScore + "점", canvas.width - 190, 32);
+
+      if (messageTimer > 0) {
+        ctx.fillStyle = "#fef3c7";
+        ctx.font = "bold 21px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(message, canvas.width / 2, 38);
+        ctx.textAlign = "left";
+      }
+
+      if (shopOpen) drawShop();
+      if (paused) drawPauseMenu();
+      if (gameOver) drawGameOver();
+    }
+
+    function drawShop() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.80)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(110, 70, 760, 465);
+
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 38px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("랜덤 상점", canvas.width / 2, 125);
+
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText("보유 돈: " + money + "원", canvas.width / 2, 160);
+
+      ctx.font = "15px Arial";
+      ctx.fillStyle = "#cbd5e1";
+      ctx.fillText("숫자 1~3으로 구매 / 4 또는 Enter로 나가기", canvas.width / 2, 188);
+
+      const startY = 220;
+      for (let i = 0; i < shopOptions.length; i++) {
+        const o = shopOptions[i];
+        const y = startY + i * 88;
+        const price = getDiscountedPrice(o.price);
+
+        ctx.fillStyle = o.kind === "sold" ? "#334155" : o.color;
+        ctx.fillRect(180, y, 620, 68);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText(`${i + 1}. ${o.name}`, 205, y + 27);
+
+        ctx.font = "15px Arial";
+        ctx.fillText(o.desc, 205, y + 51);
+
+        ctx.textAlign = "right";
+        ctx.font = "bold 18px Arial";
+        ctx.fillText(o.kind === "sold" ? "SOLD" : `${price}원`, 775, y + 39);
+      }
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "17px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("상점은 3000점마다 열리고, 매번 최대 3개 선택지만 랜덤으로 나옵니다.", canvas.width / 2, 500);
+
+      ctx.textAlign = "left";
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#f87171";
+      ctx.font = "50px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 70);
+
+      ctx.fillStyle = "white";
+      ctx.font = "24px Arial";
+      ctx.fillText("최종 점수: " + Math.floor(score), canvas.width / 2, canvas.height / 2 - 15);
+      ctx.fillText("보유 돈: " + money + "원", canvas.width / 2, canvas.height / 2 + 20);
+
+      drawButton(canvas.width / 2 - 110, canvas.height / 2 + 55, 220, 54, "다시하기", "#2563eb", "#ffffff");
+
+      pauseButtons = [
+        { x: canvas.width / 2 - 110, y: canvas.height / 2 + 55, w: 220, h: 54, action: "restart" }
+      ];
+
+      ctx.textAlign = "left";
+    }
+
+    function drawPauseMenu() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#67e8f9";
+      ctx.font = "bold 48px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("일시정지", canvas.width / 2, canvas.height / 2 - 100);
+
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "18px Arial";
+      ctx.fillText("1 또는 Enter: 계속하기 / 2: 다시하기", canvas.width / 2, canvas.height / 2 - 58);
+
+      drawButton(canvas.width / 2 - 130, canvas.height / 2 - 15, 260, 58, "계속하기", "#16a34a", "#ffffff");
+      drawButton(canvas.width / 2 - 130, canvas.height / 2 + 65, 260, 58, "다시하기", "#2563eb", "#ffffff");
+
+      pauseButtons = [
+        { x: canvas.width / 2 - 130, y: canvas.height / 2 - 15, w: 260, h: 58, action: "resume" },
+        { x: canvas.width / 2 - 130, y: canvas.height / 2 + 65, w: 260, h: 58, action: "restart" }
+      ];
+
+      ctx.textAlign = "left";
+    }
+
+    function drawButton(x, y, w, h, text, bg, fg) {
+      ctx.fillStyle = bg;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = fg;
+      ctx.font = "bold 22px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(text, x + w / 2, y + h / 2 + 8);
+      ctx.textAlign = "left";
+    }
+
+    function gameLoop() {
+      if (!gameOver && !shopOpen && !paused) {
+        frame++;
+        updateDifficulty();
+
+        score += (0.55 + difficulty * 0.05) * scoreMultiplier;
+
+        if (dashCooldown > 0) dashCooldown--;
+        if (invincible > 0) invincible--;
+        if (hourglassCooldown > 0) hourglassCooldown--;
+        if (beltCooldown > 0) beltCooldown--;
+        if (ghostCooldown > 0) ghostCooldown--;
+        if (hourglassActive > 0) hourglassActive--;
+        if (ghostActive > 0) ghostActive--;
+        if (speedBuffTimer > 0) speedBuffTimer--;
+        if (messageTimer > 0) messageTimer--;
+
+        movePlayer();
+
+        const spawnRate = Math.max(13, 62 - Math.floor(difficulty * 8));
+        if (frame % spawnRate === 0) spawnWarning();
+
+        if (score > 7000 && frame % Math.max(42, 120 - Math.floor(difficulty * 10)) === 0) {
+          spawnWarning();
+        }
+
+        spawnDrops();
+        updateWarnings();
+        updateSkills();
+        updateDrops();
+        updateParticles();
+        updateFloatingTexts();
+        updateRegen();
+        checkCollision();
+
+        if (score >= nextShopScore) openShop();
+      } else {
+        if (messageTimer > 0) messageTimer--;
+      }
+
+      drawMap();
+      drawWarnings();
+      drawSkills();
+      drawDrops();
+      drawParticles();
+      drawFloatingTexts();
+      drawPlayer();
+      drawUI();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    init();
+    gameLoop();
+  </script>
+</body>
+</html>
