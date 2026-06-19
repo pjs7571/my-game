@@ -19,6 +19,112 @@
 
     #gameWrap { text-align: center; }
 
+    .start-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(2, 6, 23, 0.92);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .start-screen.hidden {
+      display: none;
+    }
+
+    .start-card {
+      width: min(520px, 94vw);
+      background: linear-gradient(180deg, #0f172a, #020617);
+      border: 2px solid #38bdf8;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.35);
+      text-align: center;
+    }
+
+    .start-card h1 {
+      margin: 0 0 12px;
+      color: #67e8f9;
+      font-size: 34px;
+    }
+
+    .start-card p {
+      color: #cbd5e1;
+      margin: 8px 0 16px;
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 2px solid #334155;
+      background: #020617;
+      color: white;
+      font-size: 18px;
+      outline: none;
+      text-align: center;
+      user-select: text;
+    }
+
+    .name-input:focus {
+      border-color: #38bdf8;
+    }
+
+    .start-button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px 18px;
+      border: none;
+      border-radius: 12px;
+      background: #2563eb;
+      color: white;
+      font-size: 19px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .start-button:hover {
+      background: #1d4ed8;
+    }
+
+    .ranking-box {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #334155;
+      text-align: left;
+    }
+
+    .ranking-box h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      color: #facc15;
+      text-align: center;
+    }
+
+    .ranking-box ol {
+      margin: 0;
+      padding-left: 26px;
+      color: #e5e7eb;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .rank-mode {
+      color: #93c5fd;
+      font-size: 14px;
+      font-weight: normal;
+    }
+
+    .firebase-hint {
+      font-size: 13px;
+      color: #94a3b8 !important;
+      margin-bottom: 0 !important;
+    }
+
     canvas {
       background: radial-gradient(circle at center, #1f2937 0%, #020617 100%);
       border: 3px solid #38bdf8;
@@ -65,10 +171,34 @@
     <button class="btn" onclick="togglePause()">일시정지 / 계속하기</button>
   </div>
 
+  <div id="startScreen" class="start-screen">
+    <div class="start-card">
+      <h1>롤 스킬 피하기</h1>
+      <p>랭킹에 등록할 이름을 입력하고 시작하세요.</p>
+      <input id="playerNameInput" class="name-input" maxlength="12" placeholder="이름 입력 예: 준서" />
+      <button id="startGameButton" class="start-button">게임 시작</button>
+
+      <div class="ranking-box">
+        <h2>랭킹 TOP 10 <span id="rankMode" class="rank-mode">(로컬)</span></h2>
+        <ol id="startRankingList">
+          <li>랭킹을 불러오는 중...</li>
+        </ol>
+      </div>
+
+      <p class="firebase-hint">Firebase 설정값을 넣으면 친구들과 같은 온라인 랭킹을 사용할 수 있습니다.</p>
+    </div>
+  </div>
+
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const keys = {};
+
+    const startScreen = document.getElementById("startScreen");
+    const playerNameInput = document.getElementById("playerNameInput");
+    const startGameButton = document.getElementById("startGameButton");
+    const startRankingList = document.getElementById("startRankingList");
+    const rankModeText = document.getElementById("rankMode");
 
     let player, skills, warnings, particles, drops, floatingTexts;
     let score, hp, maxHp, money, gameOver, frame, difficulty;
@@ -78,6 +208,12 @@
     let countdownActive, countdownFrame, countdownReason;
     let dashVisualTimer, dashTrail, hitBlinkTimer;
     let lastFrameTime;
+    let playerName = "";
+    let gameStarted = false;
+    let scoreSubmitted = false;
+    let rankingList = [];
+    let rankingMode = "로컬";
+    let rankingLoading = false;
     let hasHourglass, hasBelt, hasGhost;
     let hourglassCooldown, hourglassActive;
     let beltCooldown, beltActive;
@@ -166,6 +302,7 @@
       speedBuffTimer = 0;
       message = "";
       messageTimer = 0;
+      scoreSubmitted = false;
 
       bonusSpeed = 0;
       dashCooldownReduce = 0;
@@ -244,8 +381,38 @@
       }
     });
 
+    startGameButton.addEventListener("click", startGameFromName);
+
+    window.addEventListener("firebaseRankingReady", refreshRankingData);
+
+    playerNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") startGameFromName();
+    });
+
+    function cleanPlayerName(value) {
+      return value.trim().replace(/[<>]/g, "").slice(0, 12);
+    }
+
+    function startGameFromName() {
+      const name = cleanPlayerName(playerNameInput.value);
+      if (!name) {
+        alert("이름을 입력하고 시작해줘!");
+        playerNameInput.focus();
+        return;
+      }
+
+      playerName = name;
+      gameStarted = true;
+      startScreen.classList.add("hidden");
+      init();
+    }
+
     function restartGame() {
       init();
+      if (playerName) {
+        gameStarted = true;
+        startScreen.classList.add("hidden");
+      }
     }
 
     function togglePause() {
@@ -255,6 +422,110 @@
 
     function resumeGame() {
       paused = false;
+    }
+
+
+    function getLocalScores() {
+      try {
+        return JSON.parse(localStorage.getItem("lolSkillDodgeScores") || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveLocalScore(entry) {
+      const list = getLocalScores();
+      list.push(entry);
+      list.sort((a, b) => b.score - a.score);
+      localStorage.setItem("lolSkillDodgeScores", JSON.stringify(list.slice(0, 50)));
+      return list.slice(0, 10);
+    }
+
+    function loadLocalRanking() {
+      return getLocalScores().sort((a, b) => b.score - a.score).slice(0, 10);
+    }
+
+    function renderStartRanking() {
+      const list = rankingList.length ? rankingList : loadLocalRanking();
+      startRankingList.innerHTML = "";
+
+      if (!list.length) {
+        const li = document.createElement("li");
+        li.textContent = "아직 기록이 없습니다.";
+        startRankingList.appendChild(li);
+      } else {
+        list.slice(0, 10).forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = `${item.name || "플레이어"} - ${Math.floor(item.score || 0)}점`;
+          startRankingList.appendChild(li);
+        });
+      }
+
+      rankModeText.textContent = `(${rankingMode})`;
+    }
+
+    function refreshRankingData() {
+      const onlineLoader = window.loadRankingOnline;
+
+      if (typeof onlineLoader === "function") {
+        rankingLoading = true;
+        onlineLoader()
+          .then((list) => {
+            rankingList = Array.isArray(list) ? list : [];
+            rankingMode = "온라인";
+            rankingLoading = false;
+            renderStartRanking();
+          })
+          .catch(() => {
+            rankingList = loadLocalRanking();
+            rankingMode = "로컬";
+            rankingLoading = false;
+            renderStartRanking();
+          });
+      } else {
+        rankingList = loadLocalRanking();
+        rankingMode = "로컬";
+        rankingLoading = false;
+        renderStartRanking();
+      }
+    }
+
+    function submitFinalScore() {
+      if (scoreSubmitted) return;
+      scoreSubmitted = true;
+      rankingLoading = true;
+
+      const entry = {
+        name: playerName || "플레이어",
+        score: Math.floor(score),
+        money: Math.floor(money),
+        createdAt: new Date().toISOString()
+      };
+
+      const onlineSubmit = window.submitScoreOnline;
+      const onlineLoader = window.loadRankingOnline;
+
+      if (typeof onlineSubmit === "function" && typeof onlineLoader === "function") {
+        onlineSubmit(entry)
+          .then(() => onlineLoader())
+          .then((list) => {
+            rankingList = Array.isArray(list) ? list : [];
+            rankingMode = "온라인";
+            rankingLoading = false;
+            renderStartRanking();
+          })
+          .catch(() => {
+            rankingList = saveLocalScore(entry);
+            rankingMode = "로컬";
+            rankingLoading = false;
+            renderStartRanking();
+          });
+      } else {
+        rankingList = saveLocalScore(entry);
+        rankingMode = "로컬";
+        rankingLoading = false;
+        renderStartRanking();
+      }
     }
 
     function rand(min, max) {
@@ -1181,7 +1452,10 @@
           createHitParticles(player.x, player.y);
 
           if (s.type !== "laser" && s.type !== "circle") skills.splice(i, 1);
-          if (hp <= 0) gameOver = true;
+          if (hp <= 0) {
+            gameOver = true;
+            submitFinalScore();
+          }
           break;
         }
       }
@@ -1652,23 +1926,48 @@
     }
 
     function drawGameOver() {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.fillStyle = "#f87171";
       ctx.font = "50px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 70);
+      ctx.fillText("게임 오버", canvas.width / 2, 100);
 
       ctx.fillStyle = "white";
-      ctx.font = "24px Arial";
-      ctx.fillText("최종 점수: " + Math.floor(score), canvas.width / 2, canvas.height / 2 - 15);
-      ctx.fillText("보유 돈: " + money + "원", canvas.width / 2, canvas.height / 2 + 20);
+      ctx.font = "23px Arial";
+      ctx.fillText("플레이어: " + (playerName || "플레이어"), canvas.width / 2, 145);
+      ctx.fillText("최종 점수: " + Math.floor(score), canvas.width / 2, 180);
+      ctx.fillText("보유 돈: " + money + "원", canvas.width / 2, 215);
 
-      drawButton(canvas.width / 2 - 110, canvas.height / 2 + 55, 220, 54, "다시하기", "#2563eb", "#ffffff");
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 26px Arial";
+      ctx.fillText("랭킹 TOP 10 " + "(" + rankingMode + ")", canvas.width / 2, 270);
+
+      ctx.font = "18px Arial";
+      ctx.fillStyle = "#e5e7eb";
+
+      if (rankingLoading) {
+        ctx.fillText("랭킹 등록 중...", canvas.width / 2, 315);
+      } else {
+        const list = rankingList.length ? rankingList : loadLocalRanking();
+
+        if (!list.length) {
+          ctx.fillText("아직 등록된 기록이 없습니다.", canvas.width / 2, 315);
+        } else {
+          for (let i = 0; i < Math.min(10, list.length); i++) {
+            const item = list[i];
+            const y = 310 + i * 24;
+            const line = `${i + 1}위  ${item.name || "플레이어"}  -  ${Math.floor(item.score || 0)}점`;
+            ctx.fillText(line, canvas.width / 2, y);
+          }
+        }
+      }
+
+      drawButton(canvas.width / 2 - 110, 535, 220, 48, "다시하기", "#2563eb", "#ffffff");
 
       pauseButtons = [
-        { x: canvas.width / 2 - 110, y: canvas.height / 2 + 55, w: 220, h: 54, action: "restart" }
+        { x: canvas.width / 2 - 110, y: 535, w: 220, h: 48, action: "restart" }
       ];
 
       ctx.textAlign = "left";
@@ -1728,7 +2027,7 @@
 
       lastFrameTime = timestamp - (elapsed % frameInterval);
 
-      if (!gameOver && !shopOpen && !paused && !countdownActive) {
+      if (gameStarted && !gameOver && !shopOpen && !paused && !countdownActive) {
         frame++;
         updateDifficulty();
 
@@ -1769,7 +2068,7 @@
       } else {
         if (messageTimer > 0) messageTimer--;
 
-        if (countdownActive && !gameOver && !shopOpen && !paused) {
+        if (gameStarted && countdownActive && !gameOver && !shopOpen && !paused) {
           countdownFrame--;
           if (countdownFrame <= 0) {
             countdownActive = false;
@@ -1794,7 +2093,82 @@
     }
 
     init();
+    refreshRankingData();
+    setTimeout(refreshRankingData, 1200);
     requestAnimationFrame(gameLoop);
   </script>
+
+  <script type="module">
+    /*
+      Firebase 온라인 랭킹 사용법
+
+      1. Firebase 콘솔에서 프로젝트 생성
+      2. 웹 앱 등록
+      3. Firestore Database 생성
+      4. 아래 firebaseConfig에 본인 설정값 붙여넣기
+      5. GitHub/Vercel에 다시 업로드
+
+      설정값을 비워두면 자동으로 localStorage 로컬 랭킹만 사용합니다.
+    */
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJ_os7XGfk9wWJJo35FrdNT8eGQ3MhTQU",
+      authDomain: "lol-skill-dodge.firebaseapp.com",
+      projectId: "lol-skill-dodge",
+      storageBucket: "lol-skill-dodge.firebasestorage.app",
+      messagingSenderId: "410213599441",
+      appId: "1:410213599441:web:675beabcc12c29b46addf0",
+      measurementId: "G-CQWKWMGBHQ"
+    };
+
+    const isFirebaseConfigured =
+      firebaseConfig.apiKey &&
+      firebaseConfig.projectId &&
+      firebaseConfig.appId;
+
+    if (isFirebaseConfigured) {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      const {
+        getFirestore,
+        collection,
+        addDoc,
+        getDocs,
+        query,
+        orderBy,
+        limit,
+        serverTimestamp
+      } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const scoreCollection = collection(db, "rankings");
+
+      window.submitScoreOnline = async function(entry) {
+        await addDoc(scoreCollection, {
+          name: String(entry.name || "플레이어").slice(0, 12),
+          score: Math.floor(Number(entry.score) || 0),
+          money: Math.floor(Number(entry.money) || 0),
+          createdAt: serverTimestamp()
+        });
+      };
+
+      window.loadRankingOnline = async function() {
+        const q = query(scoreCollection, orderBy("score", "desc"), limit(10));
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            name: data.name || "플레이어",
+            score: Number(data.score) || 0,
+            money: Number(data.money) || 0
+          };
+        });
+      };
+
+      window.dispatchEvent(new Event("firebaseRankingReady"));
+    }
+  </script>
+
 </body>
 </html>
