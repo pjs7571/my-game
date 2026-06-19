@@ -160,6 +160,215 @@
 
     .btn:hover { background: #1d4ed8; }
 
+    .board-open-btn {
+      position: fixed;
+      left: 14px;
+      top: 14px;
+      z-index: 31;
+      padding: 11px 14px;
+      border: 2px solid rgba(56, 189, 248, 0.7);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+
+    .board-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(2, 6, 23, 0.88);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 18px;
+    }
+
+    .board-modal.show {
+      display: flex;
+    }
+
+    .board-card {
+      width: min(760px, 96vw);
+      max-height: 92dvh;
+      overflow: auto;
+      background: linear-gradient(180deg, #0f172a, #020617);
+      border: 2px solid #38bdf8;
+      border-radius: 18px;
+      padding: 20px;
+      color: white;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.35);
+      text-align: left;
+    }
+
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .board-header h2 {
+      margin: 0;
+      color: #67e8f9;
+      font-size: 26px;
+    }
+
+    .board-close-btn {
+      border: none;
+      border-radius: 10px;
+      background: #ef4444;
+      color: white;
+      font-weight: bold;
+      padding: 9px 13px;
+      cursor: pointer;
+    }
+
+    .board-form {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 12px;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.75);
+    }
+
+    .board-form input,
+    .board-form textarea {
+      width: 100%;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      background: #020617;
+      color: white;
+      padding: 11px;
+      font-size: 15px;
+      outline: none;
+      user-select: text;
+    }
+
+    .board-form textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    .board-form input:focus,
+    .board-form textarea:focus {
+      border-color: #38bdf8;
+    }
+
+    .board-submit-btn,
+    .admin-btn {
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      padding: 11px 14px;
+      cursor: pointer;
+    }
+
+    .admin-btn {
+      background: #7c3aed;
+    }
+
+    .board-top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .board-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .board-post {
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.82);
+    }
+
+    .board-post-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #facc15;
+      margin-bottom: 5px;
+    }
+
+    .board-post-meta {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .board-post-body {
+      color: #e5e7eb;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .board-post-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .post-edit-btn {
+      border: none;
+      border-radius: 8px;
+      background: #0ea5e9;
+      color: white;
+      font-weight: bold;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    .post-delete-btn {
+      border: none;
+      border-radius: 8px;
+      background: #dc2626;
+      color: white;
+      font-weight: bold;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    .board-help {
+      color: #94a3b8;
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+
+    .admin-on {
+      color: #86efac;
+      font-weight: bold;
+    }
+
+    @media (max-width: 900px), (pointer: coarse) {
+      .board-open-btn {
+        top: 12px;
+        left: 12px;
+        padding: 9px 11px;
+        font-size: 13px;
+      }
+
+      .board-card {
+        padding: 14px;
+      }
+
+      .board-header h2 {
+        font-size: 22px;
+      }
+    }
+
+
     .mobile-controls {
       position: fixed;
       inset: 0;
@@ -447,6 +656,35 @@
   <button id="mobilePause" class="btn-pause">Ⅱ</button>
   <div id="mobileShopHelp" class="mobile-shop-help">상점은 숫자 대신 화면의 1~3 위치를 터치해도 됩니다</div>
 
+
+  <button id="openBoardButton" class="board-open-btn">자유게시판</button>
+
+  <div id="boardModal" class="board-modal">
+    <div class="board-card">
+      <div class="board-header">
+        <h2>자유게시판</h2>
+        <button id="closeBoardButton" class="board-close-btn">닫기</button>
+      </div>
+
+      <div class="board-top-actions">
+        <button id="adminLoginButton" class="admin-btn">관리자 로그인</button>
+        <span id="adminStatus" class="board-help">관리자 모드: OFF</span>
+      </div>
+
+      <div class="board-form">
+        <input id="boardNameInput" maxlength="12" placeholder="작성자 이름" />
+        <input id="boardTitleInput" maxlength="40" placeholder="제목" />
+        <textarea id="boardContentInput" maxlength="300" placeholder="내용을 입력하세요"></textarea>
+        <button id="boardSubmitButton" class="board-submit-btn">글 등록</button>
+        <p class="board-help">온라인 연결 시 Firestore에 저장되고, 연결 실패 시 내 기기에만 저장됩니다.</p>
+      </div>
+
+      <div id="boardList" class="board-list">
+        <div class="board-post">게시글을 불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
@@ -467,6 +705,17 @@
     const mobilePause = document.getElementById("mobilePause");
     const mobileShopHelp = document.getElementById("mobileShopHelp");
 
+    const openBoardButton = document.getElementById("openBoardButton");
+    const boardModal = document.getElementById("boardModal");
+    const closeBoardButton = document.getElementById("closeBoardButton");
+    const adminLoginButton = document.getElementById("adminLoginButton");
+    const adminStatus = document.getElementById("adminStatus");
+    const boardNameInput = document.getElementById("boardNameInput");
+    const boardTitleInput = document.getElementById("boardTitleInput");
+    const boardContentInput = document.getElementById("boardContentInput");
+    const boardSubmitButton = document.getElementById("boardSubmitButton");
+    const boardList = document.getElementById("boardList");
+
     let player, skills, warnings, particles, drops, floatingTexts;
     let score, hp, maxHp, money, gameOver, frame, difficulty;
     let dashCooldown, dashTime, invincible;
@@ -474,6 +723,7 @@
     let paused, pauseButtons;
     let countdownActive, countdownFrame, countdownReason;
     let dashVisualTimer, dashTrail, hitBlinkTimer;
+    let idleEggTimer, idleEggDone, lastPlayerX, lastPlayerY;
     let lastFrameTime;
     let playerName = "";
     let gameStarted = false;
@@ -484,6 +734,12 @@
     let mobileMoveX = 0;
     let mobileMoveY = 0;
     let joystickPointerId = null;
+
+    const ADMIN_PASSWORD = "1234";
+    let isAdmin = false;
+    let boardPosts = [];
+    let boardMode = "로컬";
+    let editingPostId = null;
     let hasHourglass, hasBelt, hasGhost;
     let hourglassCooldown, hourglassActive;
     let beltCooldown, beltActive;
@@ -556,6 +812,10 @@
       dashVisualTimer = 0;
       dashTrail = [];
       hitBlinkTimer = 0;
+      idleEggTimer = 0;
+      idleEggDone = false;
+      lastPlayerX = player.x;
+      lastPlayerY = player.y;
       lastFrameTime = 0;
 
       hasHourglass = false;
@@ -675,7 +935,10 @@
 
     startGameButton.addEventListener("click", startGameFromName);
 
-    window.addEventListener("firebaseRankingReady", refreshRankingData);
+    window.addEventListener("firebaseRankingReady", () => {
+      refreshRankingData();
+      refreshBoardPosts();
+    });
 
     playerNameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") startGameFromName();
@@ -694,6 +957,7 @@
       }
 
       playerName = name;
+      boardNameInput.value = name;
       gameStarted = true;
       startScreen.classList.add("hidden");
       init();
@@ -842,6 +1106,278 @@
     }, { passive: false });
 
 
+
+
+    function cleanText(value, maxLength) {
+      return String(value || "").trim().replace(/[<>]/g, "").slice(0, maxLength);
+    }
+
+    function getLocalBoardPosts() {
+      try {
+        return JSON.parse(localStorage.getItem("lolSkillDodgeBoardPosts") || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveLocalBoardPosts(list) {
+      localStorage.setItem("lolSkillDodgeBoardPosts", JSON.stringify(list.slice(0, 100)));
+    }
+
+    function renderBoardPosts() {
+      boardList.innerHTML = "";
+
+      if (!boardPosts.length) {
+        const empty = document.createElement("div");
+        empty.className = "board-post";
+        empty.textContent = "아직 게시글이 없습니다.";
+        boardList.appendChild(empty);
+        return;
+      }
+
+      boardPosts.slice(0, 50).forEach((post) => {
+        const item = document.createElement("div");
+        item.className = "board-post";
+
+        const title = document.createElement("div");
+        title.className = "board-post-title";
+        title.textContent = post.title || "제목 없음";
+
+        const meta = document.createElement("div");
+        meta.className = "board-post-meta";
+        const dateText = post.createdAtText || post.createdAt || "";
+        meta.textContent = `${post.name || "익명"} · ${dateText} · ${boardMode}`;
+
+        const body = document.createElement("div");
+        body.className = "board-post-body";
+        body.textContent = post.content || "";
+
+        item.appendChild(title);
+        item.appendChild(meta);
+        item.appendChild(body);
+
+        if (isAdmin) {
+          const actions = document.createElement("div");
+          actions.className = "board-post-actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.className = "post-edit-btn";
+          editBtn.textContent = "수정";
+          editBtn.onclick = () => startEditPost(post);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "post-delete-btn";
+          deleteBtn.textContent = "삭제";
+          deleteBtn.onclick = () => deleteBoardPost(post.id);
+
+          actions.appendChild(editBtn);
+          actions.appendChild(deleteBtn);
+          item.appendChild(actions);
+        }
+
+        boardList.appendChild(item);
+      });
+    }
+
+    function updateAdminStatus() {
+      adminStatus.textContent = isAdmin ? "관리자 모드: ON" : "관리자 모드: OFF";
+      adminStatus.className = isAdmin ? "board-help admin-on" : "board-help";
+      adminLoginButton.textContent = isAdmin ? "관리자 로그아웃" : "관리자 로그인";
+      renderBoardPosts();
+    }
+
+    function openBoard() {
+      boardModal.classList.add("show");
+      paused = true;
+      refreshBoardPosts();
+    }
+
+    function closeBoard() {
+      boardModal.classList.remove("show");
+      if (!gameOver && !shopOpen) paused = false;
+      editingPostId = null;
+      boardSubmitButton.textContent = "글 등록";
+    }
+
+    openBoardButton.addEventListener("click", openBoard);
+    closeBoardButton.addEventListener("click", closeBoard);
+
+    boardModal.addEventListener("click", (e) => {
+      if (e.target === boardModal) closeBoard();
+    });
+
+    adminLoginButton.addEventListener("click", () => {
+      if (isAdmin) {
+        isAdmin = false;
+        updateAdminStatus();
+        return;
+      }
+
+      const input = prompt("관리자 비밀번호를 입력하세요");
+      if (input === ADMIN_PASSWORD) {
+        isAdmin = true;
+        alert("관리자 모드가 켜졌습니다.");
+      } else if (input !== null) {
+        alert("비밀번호가 틀렸습니다.");
+      }
+
+      updateAdminStatus();
+    });
+
+    boardSubmitButton.addEventListener("click", submitBoardPost);
+
+    function startEditPost(post) {
+      if (!isAdmin) return;
+      editingPostId = post.id;
+      boardNameInput.value = post.name || "";
+      boardTitleInput.value = post.title || "";
+      boardContentInput.value = post.content || "";
+      boardSubmitButton.textContent = "수정 완료";
+      boardTitleInput.focus();
+    }
+
+    function makePostFromInputs() {
+      const name = cleanText(boardNameInput.value, 12) || playerName || "익명";
+      const title = cleanText(boardTitleInput.value, 40);
+      const content = cleanText(boardContentInput.value, 300);
+
+      if (!title) {
+        alert("제목을 입력해줘!");
+        return null;
+      }
+
+      if (!content) {
+        alert("내용을 입력해줘!");
+        return null;
+      }
+
+      return { name, title, content };
+    }
+
+    function clearBoardInputs() {
+      boardTitleInput.value = "";
+      boardContentInput.value = "";
+      if (!boardNameInput.value && playerName) boardNameInput.value = playerName;
+      editingPostId = null;
+      boardSubmitButton.textContent = "글 등록";
+    }
+
+    async function submitBoardPost() {
+      const data = makePostFromInputs();
+      if (!data) return;
+
+      if (editingPostId) {
+        if (!isAdmin) {
+          alert("수정은 관리자만 가능합니다.");
+          return;
+        }
+        await updateBoardPost(editingPostId, data);
+        clearBoardInputs();
+        return;
+      }
+
+      const entry = {
+        id: "local_" + Date.now() + "_" + Math.random().toString(16).slice(2),
+        ...data,
+        createdAt: new Date().toISOString(),
+        createdAtText: new Date().toLocaleString("ko-KR")
+      };
+
+      const onlineCreate = window.createBoardPostOnline;
+
+      if (typeof onlineCreate === "function") {
+        try {
+          await onlineCreate(entry);
+          boardMode = "온라인";
+          clearBoardInputs();
+          await refreshBoardPosts();
+          return;
+        } catch (e) {
+          console.warn("온라인 게시글 등록 실패, 로컬로 저장합니다.", e);
+        }
+      }
+
+      const list = getLocalBoardPosts();
+      list.unshift(entry);
+      saveLocalBoardPosts(list);
+      boardPosts = list;
+      boardMode = "로컬";
+      clearBoardInputs();
+      renderBoardPosts();
+    }
+
+    async function updateBoardPost(id, data) {
+      const onlineUpdate = window.updateBoardPostOnline;
+
+      if (typeof onlineUpdate === "function" && !String(id).startsWith("local_")) {
+        try {
+          await onlineUpdate(id, data);
+          boardMode = "온라인";
+          await refreshBoardPosts();
+          return;
+        } catch (e) {
+          console.warn("온라인 수정 실패", e);
+        }
+      }
+
+      const list = getLocalBoardPosts();
+      const index = list.findIndex((p) => p.id === id);
+      if (index >= 0) {
+        list[index] = {
+          ...list[index],
+          ...data,
+          editedAt: new Date().toISOString(),
+          editedAtText: new Date().toLocaleString("ko-KR")
+        };
+        saveLocalBoardPosts(list);
+        boardPosts = list;
+        boardMode = "로컬";
+        renderBoardPosts();
+      }
+    }
+
+    async function deleteBoardPost(id) {
+      if (!isAdmin) return;
+      if (!confirm("이 게시글을 삭제할까요?")) return;
+
+      const onlineDelete = window.deleteBoardPostOnline;
+
+      if (typeof onlineDelete === "function" && !String(id).startsWith("local_")) {
+        try {
+          await onlineDelete(id);
+          boardMode = "온라인";
+          await refreshBoardPosts();
+          return;
+        } catch (e) {
+          console.warn("온라인 삭제 실패", e);
+        }
+      }
+
+      const list = getLocalBoardPosts().filter((p) => p.id !== id);
+      saveLocalBoardPosts(list);
+      boardPosts = list;
+      boardMode = "로컬";
+      renderBoardPosts();
+    }
+
+    async function refreshBoardPosts() {
+      const onlineLoader = window.loadBoardPostsOnline;
+
+      if (typeof onlineLoader === "function") {
+        try {
+          boardPosts = await onlineLoader();
+          boardMode = "온라인";
+          renderBoardPosts();
+          return;
+        } catch (e) {
+          console.warn("온라인 게시판 불러오기 실패, 로컬 게시판 사용", e);
+        }
+      }
+
+      boardPosts = getLocalBoardPosts();
+      boardMode = "로컬";
+      renderBoardPosts();
+    }
 
     function getLocalScores() {
       try {
@@ -1507,6 +2043,29 @@
       ghostCooldown = 900;
       createBurst(player.x, player.y, "#a7f3d0");
       showMessage("유체화 발동!");
+    }
+
+    function updateIdleEasterEgg() {
+      if (idleEggDone || !gameStarted || countdownActive || paused || shopOpen || gameOver) return;
+      if (frame > 600) return; // 시작 후 약 10초 안에서만 체크
+
+      const moved = Math.hypot(player.x - lastPlayerX, player.y - lastPlayerY);
+
+      if (moved < 0.08) {
+        idleEggTimer++;
+      } else {
+        idleEggTimer = 0;
+        lastPlayerX = player.x;
+        lastPlayerY = player.y;
+      }
+
+      if (idleEggTimer >= 600) {
+        idleEggDone = true;
+        score += 1000;
+        createBurst(player.x, player.y, "#facc15");
+        addFloatingText("이스터에그 +1000점!", player.x, player.y - 35, "#facc15");
+        showMessage("10초 동안 가만히 있기 성공! +1000점");
+      }
     }
 
     function updateDifficulty() {
@@ -2486,6 +3045,7 @@
         updateParticles();
         updateDashTrail();
         updateFloatingTexts();
+        updateIdleEasterEgg();
         updateRegen();
         checkCollision();
 
@@ -2561,12 +3121,16 @@
         query,
         orderBy,
         limit,
-        serverTimestamp
+        serverTimestamp,
+        doc,
+        updateDoc,
+        deleteDoc
       } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
 
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const scoreCollection = collection(db, "rankings");
+      const boardCollection = collection(db, "boardPosts");
 
       window.submitScoreOnline = async function(entry) {
         await addDoc(scoreCollection, {
@@ -2589,6 +3153,53 @@
             money: Number(data.money) || 0
           };
         });
+      };
+
+
+      window.createBoardPostOnline = async function(entry) {
+        await addDoc(boardCollection, {
+          name: String(entry.name || "익명").slice(0, 12),
+          title: String(entry.title || "제목 없음").slice(0, 40),
+          content: String(entry.content || "").slice(0, 300),
+          createdAt: serverTimestamp()
+        });
+      };
+
+      window.loadBoardPostsOnline = async function() {
+        const q = query(boardCollection, orderBy("createdAt", "desc"), limit(50));
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          let createdAtText = "";
+
+          if (data.createdAt && typeof data.createdAt.toDate === "function") {
+            createdAtText = data.createdAt.toDate().toLocaleString("ko-KR");
+          }
+
+          return {
+            id: docSnap.id,
+            name: data.name || "익명",
+            title: data.title || "제목 없음",
+            content: data.content || "",
+            createdAtText
+          };
+        });
+      };
+
+      window.updateBoardPostOnline = async function(id, data) {
+        const postRef = doc(db, "boardPosts", id);
+        await updateDoc(postRef, {
+          name: String(data.name || "익명").slice(0, 12),
+          title: String(data.title || "제목 없음").slice(0, 40),
+          content: String(data.content || "").slice(0, 300),
+          editedAt: serverTimestamp()
+        });
+      };
+
+      window.deleteBoardPostOnline = async function(id) {
+        const postRef = doc(db, "boardPosts", id);
+        await deleteDoc(postRef);
       };
 
       window.dispatchEvent(new Event("firebaseRankingReady"));
