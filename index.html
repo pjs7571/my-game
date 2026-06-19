@@ -676,7 +676,7 @@
         <input id="boardTitleInput" maxlength="40" placeholder="제목" />
         <textarea id="boardContentInput" maxlength="300" placeholder="내용을 입력하세요"></textarea>
         <button id="boardSubmitButton" class="board-submit-btn">글 등록</button>
-        <p class="board-help">온라인 연결 시 Firestore에 저장되고, 연결 실패 시 내 기기에만 저장됩니다.</p>
+        <p class="board-help">Firebase 연결 시 온라인 게시판에 저장됩니다. 연결 실패 시 임시로 내 기기에만 저장됩니다.</p>
       </div>
 
       <div id="boardList" class="board-list">
@@ -735,7 +735,7 @@
     let mobileMoveY = 0;
     let joystickPointerId = null;
 
-    const ADMIN_PASSWORD = "1234";
+    const ADMIN_PASSWORD = "987654321";
     let isAdmin = false;
     let boardPosts = [];
     let boardMode = "로컬";

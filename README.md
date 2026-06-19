@@ -1,29 +1,33 @@
 # 롤 스킬 피하기 게임
 
-Firebase 랭킹 + 모바일 조작 + 이스터에그 + 자유게시판 버전입니다.
+Firebase 랭킹 + Firebase 자유게시판 + 모바일 조작 + 이스터에그 버전입니다.
 
 ## 추가 기능
 
 ### 이스터에그
 게임 시작 후 약 10초 동안 가만히 있으면 1000점을 받습니다.
 
-### 자유게시판
+### Firebase 자유게시판
 - 화면 왼쪽 위 `자유게시판` 버튼으로 열기
-- 글 작성 가능
-- Firebase 연결 시 온라인 게시판으로 작동
-- 연결 실패 시 localStorage 로컬 게시판으로 작동
+- 게시글 작성 가능
+- Firebase Firestore의 `boardPosts` 컬렉션에 저장
+- Firebase 연결 실패 시 임시로 localStorage 로컬 게시판 사용
 
 ### 관리자 기능
-- 기본 관리자 비밀번호: `1234`
+- 관리자 비밀번호: `987654321`
 - 관리자 로그인 후 게시글 수정/삭제 가능
-- `index.html`에서 `ADMIN_PASSWORD = "1234"` 부분을 찾아 원하는 비밀번호로 바꿀 수 있습니다.
+- `index.html`에서 아래 부분을 찾아 비밀번호 변경 가능
 
-주의: HTML 안에 들어가는 비밀번호라 완전한 보안은 아닙니다. 학교 과제/친구끼리 쓰는 용도에 적합합니다.
+```js
+const ADMIN_PASSWORD = "987654321";
+```
 
-## Firebase Firestore Rules 예시
+주의: 이 방식은 HTML 안에 관리자 비밀번호가 들어가는 방식이라 완전한 보안은 아닙니다.  
+학교 과제나 친구끼리 쓰는 용도에는 괜찮지만, 실제 서비스처럼 만들려면 Firebase Authentication과 서버 검증이 필요합니다.
 
-게시판 수정/삭제까지 앱에서 쓰려면 아래 규칙처럼 `boardPosts`에 update/delete 권한도 필요합니다.
-다만 이 방식은 클라이언트 비밀번호 방식이라 강한 보안은 아닙니다.
+## Firebase Firestore Rules
+
+Firebase 콘솔의 Firestore `규칙` 탭에 아래 코드를 붙여넣고 게시하세요.
 
 ```js
 rules_version = '2';
